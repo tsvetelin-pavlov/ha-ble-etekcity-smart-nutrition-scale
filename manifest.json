@@ -1,0 +1,16 @@
+{
+  "domain": "ble_scale",
+  "name": "BLE Scale",
+  "config_flow": true,
+  "documentation": "https://github.com/jonwilliams84/ha-ble-scale",
+  "dependencies": ["bluetooth"],
+  "codeowners": ["@jonwilliams84"],
+  "requirements": ["bleak"],
+  "bluetooth": [
+    {
+      "connectable": true
+    }
+  ],
+  "version": "0.1.0",
+  "iot_class": "local_polling"
+}

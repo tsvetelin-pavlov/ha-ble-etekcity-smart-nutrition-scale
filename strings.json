@@ -1,0 +1,17 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "data": {
+          "address": "Device UUID"
+        }
+      }
+    },
+    "error": {
+      "invalid_uuid": "Invalid UUID format. Please enter a valid UUID."
+    },
+    "abort": {
+      "already_configured": "Device is already configured"
+    }
+  }
+}
