@@ -3,11 +3,11 @@ from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 from homeassistant.const import Platform
 
-DOMAIN = "ble_scale"
+DOMAIN = "senssun_scale"
 PLATFORMS = [Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up BLE Scale from a config entry."""
+    """Set up Senssun Body Scale from a config entry."""
     address = entry.data["address"]
 
     def _device_update(
