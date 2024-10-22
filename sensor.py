@@ -15,10 +15,10 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the Senssun Body Scale sensor from a config entry."""
     address = config_entry.data["address"]
     _LOGGER.debug(f"Setting up Senssun Body Scale sensor with address: {address}")
-    scale = BLEScaleSensor(hass, address)
+    scale = SenssunScaleSensor(hass, address)
     async_add_entities([scale], True)
 
-class BLEScaleSensor(SensorEntity):
+class SenssunScaleSensor(SensorEntity):
     def __init__(self, hass, address):
         self.hass = hass
         self._address = address
