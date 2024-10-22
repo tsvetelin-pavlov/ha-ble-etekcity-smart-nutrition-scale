@@ -1,10 +1,10 @@
 {
-  "domain": "ble_scale",
-  "name": "BLE Scale",
+  "domain": "senssun_scale",
+  "name": "Senssun Body Scale",
   "config_flow": true,
-  "documentation": "https://github.com/jonwilliams84/ha-ble-scale",
+  "documentation": "https://github.com/mukowman/ha-ble-senssun-scale",
   "dependencies": ["bluetooth"],
-  "codeowners": ["@jonwilliams84"],
+  "codeowners": ["@mukowman"],
   "requirements": ["bleak"],
   "bluetooth": [
     {
