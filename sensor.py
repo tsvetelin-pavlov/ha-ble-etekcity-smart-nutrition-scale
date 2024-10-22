@@ -57,7 +57,7 @@ class BLEScaleSensor(SensorEntity):
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
         
         # Extract the weight in 100-gram increments from bytes 9-10
-        gram_bytes = data[9:10]
+        gram_bytes = data[8:9]
         gram_raw = int.from_bytes(gram_bytes, byteorder='big')
         
         # Convert the raw weight to grams (100-gram increments, so multiply by 100)
