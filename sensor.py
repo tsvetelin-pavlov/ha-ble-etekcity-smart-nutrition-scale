@@ -8,8 +8,8 @@ from bleak.exc import BleakError
 
 _LOGGER = logging.getLogger(__name__)
 
-WRITE_CHAR = "0000ffb1-0000-1000-8000-00805f9b34fb"
-NOTIFY_CHAR = "0000ffb2-0000-1000-8000-00805f9b34fb"
+#WRITE_CHAR = "0000ffb1-0000-1000-8000-00805f9b34fb"
+NOTIFY_CHAR = "0000fff1-0000-1000-8000-00805f9b34fb"
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
     """Set up the BLE Scale sensor from a config entry."""
@@ -55,9 +55,23 @@ class BLEScaleSensor(SensorEntity):
 
     def decode_weight(self, data):
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
-        weight_bytes = data[4:8]
-        weight_raw = int.from_bytes(weight_bytes, byteorder='big')
-        return weight_raw / 256000
+        
+        # Extract the weight in kilograms from bytes 9-10 (100-gram increments)
+        kg_bytes = data[8:10]
+        kg_raw = int.from_bytes(kg_bytes, byteorder='big')
+        
+        # The weight is in 100-gram increments, so divide by 10 to get kg
+        weight_kg = kg_raw / 10
+        
+        # Byte 12 indicates if the measurement is stable (AA) or unstable (A0)
+        stability = data[12]
+        if stability == 0xAA:
+            _LOGGER.debug("Stable measurement detected.")
+        elif stability == 0xA0:
+            _LOGGER.debug("Unstable measurement detected.")
+        
+        return weight_kg
+
 
     def notification_handler(self, sender, data):
         _LOGGER.debug(f"Received notification: {data.hex()}")
@@ -86,8 +100,8 @@ class BLEScaleSensor(SensorEntity):
                 await self._client.start_notify(NOTIFY_CHAR, self.notification_handler)
                 _LOGGER.debug(f"Notifications started for characteristic: {NOTIFY_CHAR}")
                 
-                await self._client.write_gatt_char(WRITE_CHAR, b'\x01', response=False)
-                _LOGGER.debug(f"Wrote to characteristic: {WRITE_CHAR}")
+                #await self._client.write_gatt_char(WRITE_CHAR, b'\x01', response=False)
+                #_LOGGER.debug(f"Wrote to characteristic: {WRITE_CHAR}")
                 
                 # Set initial disconnect timer
                 self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
