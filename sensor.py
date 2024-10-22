@@ -55,21 +55,21 @@ class BLEScaleSensor(SensorEntity):
 
     def decode_weight(self, data):
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
-        
-        # Extract the weight in 100-gram increments from bytes 9-10
-        gram_bytes = data[8:9]
+
+        # Extract the weight in 100-gram increments from bytes 10-11
+        gram_bytes = data[9:11]
         gram_raw = int.from_bytes(gram_bytes, byteorder='big')
-        
+
         # Convert the raw weight to grams (100-gram increments, so multiply by 100)
         weight_grams = gram_raw * 100
-     
+
         # Byte 12 indicates if the measurement is stable (AA) or unstable (A0)
-        stability = data[12]
+        stability = data[11]
         if stability == 0xAA:
             _LOGGER.debug("Stable measurement detected.")
         elif stability == 0xA0:
             _LOGGER.debug("Unstable measurement detected.")
-        
+
         return weight_grams
 
 
