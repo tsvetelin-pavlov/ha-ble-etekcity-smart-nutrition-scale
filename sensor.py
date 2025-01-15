@@ -5,6 +5,7 @@ from homeassistant.const import UnitOfMass
 from homeassistant.core import callback
 from bleak import BleakClient
 from bleak.exc import BleakError
+from struct import unpack
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -53,23 +54,27 @@ class SenssunScaleSensor(SensorEntity):
     def available(self):
         return self._available
 
-    def decode_weight(self, data):
+    def read_stable(ctr1):
+        """Parse Stable."""
+        return int((ctr1 & 0xA0) == 0xA0)
+    
+    def decode_weight(data: bytes):
+        """Decode weight data for Senssun Scales and return only if stable."""
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
-
-        # Extract the weight in 100-gram increments from bytes 10-11
-        gram_bytes = data[9:11]
-        gram_raw = int.from_bytes(gram_bytes, byteorder='big')
-
-        # Convert the raw weight to grams (100-gram increments, so multiply by 100)
-        weight_grams = gram_raw * 100
-
-        # Byte 12 indicates if the measurement is stable (AA) or unstable (A0)
-        stability = data[11]
-        if stability == 0xAA:
-            _LOGGER.debug("Stable measurement detected.")
-        elif stability == 0xA0:
-            _LOGGER.debug("Unstable measurement detected.")
-
+    
+        # Extract relevant data from bytes
+        xvalue = data[9:15]  # Adjusted range for required bytes
+        (_, weight_raw, _, ctr1) = unpack(">bhhb", xvalue)
+    
+        # Determine if the measurement is stable
+        if not read_stable(ctr1):
+            _LOGGER.debug("Measurement is unstable. Weight not returned.")
+            return None  # Return None if the measurement is not stable
+    
+        # Convert the raw weight to grams (assuming 100-gram increments)
+        weight_grams = weight_raw * 100
+        _LOGGER.debug(f"Stable weight measurement: {weight_grams} grams")
+    
         return weight_grams
 
 
