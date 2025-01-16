@@ -63,7 +63,7 @@ class SenssunScaleSensor(SensorEntity):
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
     
         # Extract relevant data from bytes
-        weight_raw = data[10:12]  # Extracts `28 01` (bytes 10 and 11)
+        weight_raw = data[9:11]  # Extracts `28 01` (bytes 10 and 11)
         ctr1 = data[12]           # Stability byte
     
         # Convert the raw weight to grams (assuming 100-gram increments) with big-endian byte order
@@ -76,9 +76,9 @@ class SenssunScaleSensor(SensorEntity):
         #weight_kg = weight_grams / 10
     
         # Determine if the measurement is stable
-        if not self.read_stable(ctr1):  # Use self.read_stable here
-            _LOGGER.debug("Measurement is unstable. Weight not returned.")
-            return None  # Return None if the measurement is not stable
+        #if not self.read_stable(ctr1):  # Use self.read_stable here
+        #    _LOGGER.debug("Measurement is unstable. Weight not returned.")
+        #    return None  # Return None if the measurement is not stable
     
         _LOGGER.debug(f"Stable weight measurement: {weight_grams} g")
         return weight_grams
