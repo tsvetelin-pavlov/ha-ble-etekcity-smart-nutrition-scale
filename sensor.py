@@ -61,21 +61,28 @@ class SenssunScaleSensor(SensorEntity):
     def decode_weight(self, data):
         """Decode weight data for Senssun Scales and return only if stable."""
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
-    
+        
         # Extract relevant data from bytes
-        xvalue = data[9:15]  # Adjusted range for required bytes
-        (_, weight_raw, _, ctr1) = unpack(">bhhb", xvalue)
-    
+        weight_raw = data[10:12]  # Extracts `28 01` (bytes 10 and 11)
+        ctr1 = data[12]           # Stability byte
+        
+        # Convert the raw weight to grams (assuming 100-gram increments) with big-endian byte order
+        weight_raw_value = int.from_bytes(weight_raw, byteorder="big")
+        
+        # Subtract 1000 grams to match the desired weight in kilograms
+        weight_grams = weight_raw_value - 1000
+        
+        # Convert to kilograms
+        #weight_kg = weight_grams / 10
+        
         # Determine if the measurement is stable
         if not read_stable(ctr1):
             _LOGGER.debug("Measurement is unstable. Weight not returned.")
             return None  # Return None if the measurement is not stable
-    
-        # Convert the raw weight to grams (assuming 100-gram increments)
-        weight_grams = weight_raw * 100
-        _LOGGER.debug(f"Stable weight measurement: {weight_grams} grams")
-    
+        
+        _LOGGER.debug(f"Stable weight measurement: {weight_grams} g")
         return weight_grams
+
 
 
     def notification_handler(self, sender, data):
