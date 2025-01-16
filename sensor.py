@@ -58,7 +58,7 @@ class SenssunScaleSensor(SensorEntity):
         """Parse Stable."""
         return int((ctr1 & 0xA0) == 0xA0)
     
-    def decode_weight(data: bytes):
+    def decode_weight(self, data):
         """Decode weight data for Senssun Scales and return only if stable."""
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
     
