@@ -48,7 +48,7 @@ class SenssunScaleSensor(SensorEntity):
 
     @property
     def unit_of_measurement(self):
-        return UnitOfMass.GRAMS
+        return UnitOfMass.KILOGRAMS
 
     @property
     def available(self):
@@ -73,15 +73,15 @@ class SenssunScaleSensor(SensorEntity):
         weight_grams = weight_raw_value - 1000
     
         # Convert to kilograms
-        #weight_kg = weight_grams / 10
+        weight_kg = weight_grams / 10
     
         # Determine if the measurement is stable
         #if not self.read_stable(ctr1):  # Use self.read_stable here
         #    _LOGGER.debug("Measurement is unstable. Weight not returned.")
         #    return None  # Return None if the measurement is not stable
     
-        _LOGGER.debug(f"Stable weight measurement: {weight_grams} g")
-        return weight_grams
+        _LOGGER.debug(f"Stable weight measurement: {weight_kg} kg")
+        return weight_kg
 
 
 
