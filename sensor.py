@@ -2,14 +2,32 @@ import logging
 import asyncio
 from homeassistant.components.sensor import SensorEntity
 from homeassistant.const import UnitOfMass
+from homeassistant.const import UnitOfVolume
 from homeassistant.core import callback
 from bleak import BleakClient
 from bleak.exc import BleakError
 from struct import unpack
+from enum import Enum
+from collections import namedtuple
 
 _LOGGER = logging.getLogger(__name__)
 
-#WRITE_CHAR = "0000ffb1-0000-1000-8000-00805f9b34fb"
+"""
+From https://github.com/hertzg/metekcity.
+Communication happens on service 0x1910, device to client communication happens on 0x2c12 characteristic and client to device communication on 0x2c12.
+Service: 00001910-0000-1000-8000-00805f9b34fb
+    Characteristic: 00002c10-0000-1000-8000-00805f9b34fb [READ]
+    Characteristic: 00002c11-0000-1000-8000-00805f9b34fb [WRITEWITHOUTRESPONSE, WRITE]
+    Characteristic: 00002c12-0000-1000-8000-00805f9b34fb [NOTIFY, INDICATE]
+Service: 0000180a-0000-1000-8000-00805f9b34fb
+    Characteristic: 00002a23-0000-1000-8000-00805f9b34fb [READ]
+    Characteristic: 00002a50-0000-1000-8000-00805f9b34fb [READ]
+Service: 00001800-0000-1000-8000-00805f9b34fb
+    Characteristic: 00002a00-0000-1000-8000-00805f9b34fb [READ]
+    Characteristic: 00002a01-0000-1000-8000-00805f9b34fb [READ]
+"""
+
+#WRITE_CHAR = "00002c11-0000-1000-8000-00805f9b34fb"
 NOTIFY_CHAR = "00002c12-0000-1000-8000-00805f9b34fb"
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
@@ -26,12 +44,13 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         self._state = None
         self._available = False
         self._attr_name = "Etekcity Smart Nutrition Scale Weight"
-        self._attr_unique_id = f"ble_scale_{self._address}"
+        self._attr_unique_id = f"etekcity_smart_nutrition_scale_{self._address}"
         self._client = None
         self._disconnect_timer = None
         self._connect_lock = asyncio.Lock()
         self._connection_retry_interval = 60  # Retry connection every 60 seconds
         self._retry_task = None
+        self._unit = None  # Add this line to store the unit
         _LOGGER.debug(f"EtekcitySmartNutritionScaleSensor initialized with address: {address}")
 
     @property
@@ -48,51 +67,76 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
 
     @property
     def unit_of_measurement(self):
-        return UnitOfMass.KILOGRAMS # TODO: Change according to the cohsen unit on the scale.
+        if self._unit is None:
+            return None
+        unit_mapping = {
+            self.Unit.GRAMS: UnitOfMass.GRAMS,
+            self.Unit.ML: UnitOfVolume.MILLILITERS,
+            self.Unit.ML_MILK: UnitOfVolume.MILLILITERS,
+            self.Unit.FLOZ: UnitOfVolume.FLUID_OUNCES,
+            self.Unit.FLOZ_MILK: UnitOfVolume.FLUID_OUNCES,
+            self.Unit.OZ: UnitOfMass.OUNCES,
+            self.Unit.LBOZ: "lb:oz"
+        }
+        return unit_mapping.get(self._unit, None)
 
     @property
     def available(self):
         return self._available
     
-    def read_stable(self, ctr1):
-        """Parse Stable."""
-        return int((ctr1 & 0xA0) == 0xA0)
-    
+    class Unit(Enum):
+        GRAMS = 0x00
+        ML = 0x02
+        ML_MILK = 0x04
+        FLOZ = 0x03
+        FLOZ_MILK = 0x05
+        OZ = 0x06
+        LBOZ = 0x01
+
+    WeightData = namedtuple('WeightData', ['weight', 'unit', 'is_stable'])
+
     def decode_weight(self, data):
-        """Decode weight data for Etekcity Smart Nutrition Scale and return only if stable."""
+        """Decode weight data for Etekcity Smart Nutrition Scale and return a structure with weight, unit, and is_stable."""
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
-    
+
         # Extract relevant data from bytes
-        weight_raw = data[9:11]  # Extracts `28 01` (bytes 10 and 11)
-        ctr1 = data[12]           # Stability byte
-    
-        # Convert the raw weight to grams (assuming 100-gram increments) with big-endian byte order
+        sign = data[9] == 0x01     # Sign byte (True if negative, False if positive)
+        weight_raw = data[10:12]   # Weight bytes (10 and 11)
+        unit = self.Unit(data[12]) # Unit byte
+        is_stable = data[13] == 0x01  # Stability byte (True if stable, False if measuring)
+
+        # Convert the raw weight to the appropriate unit with big-endian byte order
         weight_raw_value = int.from_bytes(weight_raw, byteorder="big")
-    
-        # Subtract 1000 grams to match the desired weight in kilograms
-        weight_grams = weight_raw_value - 1000
-    
-        # Convert to kilograms
-        weight_kg = weight_grams / 10
-    
+        
+        if unit == self.Unit.LBOZ:
+            # Convert to pounds and ounces
+            pounds = weight_raw_value // 16
+            ounces = weight_raw_value % 16 / 10
+            weight = f"{pounds}:{ounces:.1f}"
+            if sign:
+                weight = f"-{weight}"
+        else:
+            # Apply sign and convert to grams or ounces
+            divisor = 100 if unit in {self.Unit.FLOZ, self.Unit.FLOZ_MILK, self.Unit.OZ, self.Unit.LBOZ} else 10
+            weight = weight_raw_value / divisor if not sign else -weight_raw_value / divisor
+
         # Determine if the measurement is stable
-        #if not self.read_stable(ctr1):  # Use self.read_stable here
-        #    _LOGGER.debug("Measurement is unstable. Weight not returned.")
-        #    return None  # Return None if the measurement is not stable
-    
-        _LOGGER.debug(f"Stable weight measurement: {weight_kg} kg")
-        return weight_kg
+        if not is_stable:
+            _LOGGER.debug("Measurement is unstable. Weight not returned.")
+            return None  # Return None if the measurement is not stable
 
-
-
+        _LOGGER.debug(f"Stable weight measurement: {weight}, Unit: {unit.name}, Stable: {is_stable}")
+        return self.WeightData(weight=weight, unit=unit, is_stable=is_stable)
 
     def notification_handler(self, sender, data):
         _LOGGER.debug(f"Received notification: {data.hex()}")
-        weight = self.decode_weight(data)
-        self._state = round(weight, 1)
-        self._available = True
-        _LOGGER.info(f"Updated weight: {self._state} grams")
-        self.async_write_ha_state()
+        weight_data = self.decode_weight(data)
+        if weight_data:
+            self._state = weight_data.weight
+            self._unit = weight_data.unit  # Store the unit
+            self._available = True
+            _LOGGER.info(f"Updated weight: {self._state}, Unit: {weight_data.unit.name}, Stable: {weight_data.is_stable}")
+            self.async_write_ha_state()
         
         # Reset the disconnect timer
         if self._disconnect_timer:
@@ -107,7 +151,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
             try:
                 self._client = BleakClient(self._address, timeout=10.0)
                 await asyncio.wait_for(self._client.connect(), timeout=20.0)
-                _LOGGER.debug(f"Connected to BLE Scale: {self._address}")
+                _LOGGER.debug(f"Connected to Etekcity Smart Nutrition Scale: {self._address}")
                 self._available = True
                 
                 await self._client.start_notify(NOTIFY_CHAR, self.notification_handler)

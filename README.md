@@ -1,5 +1,5 @@
 # Etekcity Smart Nutrition Scale Custom Component for Home Assistant
-Originally forked from https://github.com/jonwilliams84/ha-ble-scale
+Originally forked from https://github.com/mukowman/ha-ble-senssun-scale
 
 This custom component integrates Etekcity Smart Nutrition Scales into Home Assistant, providing real-time weight measurements.
 
@@ -15,7 +15,7 @@ This custom component integrates Etekcity Smart Nutrition Scales into Home Assis
 1. Ensure that [HACS](https://hacs.xyz/) is installed in your Home Assistant instance.
 2. In the HACS panel, click on the 3 dots in the top right corner.
 3. Select "Custom repositories"
-4. Add the URL "https://github.com/mukowman/ha-ble-senssun-scale" to the repository.
+4. Add the URL "https://github.com/tsvetelin-pavlov/ha-ble-etekcity-smart-nutrition-scale" to the repository.
 5. Select integration as the type.
 6. Click the "ADD" button.
 
