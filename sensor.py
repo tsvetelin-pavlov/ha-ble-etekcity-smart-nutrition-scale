@@ -37,6 +37,35 @@ async def async_setup_entry(hass, config_entry, async_add_entities):
     scale = EtekcitySmartNutritionScaleSensor(hass, address)
     async_add_entities([scale], True)
 
+class Units(Enum):
+    GRAMS = 0x00
+    ML = 0x02
+    ML_MILK = 0x04
+    FLOZ = 0x03
+    FLOZ_MILK = 0x05
+    OZ = 0x06
+    LBOZ = 0x01
+
+class PacketTypes(Enum):
+    SET_UNIT = 0xc0
+    SET_TARE = 0xc1
+    SET_AUTO_OFF = 0xc4
+    MEASUREMENT = 0xd0
+    UNIT_STATE = 0xd1
+    TARE_STATE = 0xd3
+    AUTO_OFF_STATE = 0xd5
+    ERROR_STATE = 0xe0
+    ITEM_STATE = 0xe4
+    SET_NUTRITION = 0xc2
+    PING = 0xc3
+    UNKNOWN_D2 = 0xd2
+    PONG = 0xd4
+    UNKNOWN_E1 = 0xe1
+    UNKNOWN_E2 = 0xe2
+    UNKNOWN_E3 = 0xe3
+
+WeightData = namedtuple('WeightData', ['weight', 'unit', 'is_stable'])
+
 class EtekcitySmartNutritionScaleSensor(SensorEntity):
     def __init__(self, hass, address):
         self.hass = hass
@@ -51,7 +80,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         self._connection_retry_interval = 60  # Retry connection every 60 seconds
         self._retry_task = None
         self._unit = None  # Add this line to store the unit
-        _LOGGER.debug(f"EtekcitySmartNutritionScaleSensor initialized with address: {address}")
+        _LOGGER.debug(f"Etekcity Smart Nutrition Scale Sensor initialized with address: {address}")
 
     @property
     def name(self):
@@ -70,13 +99,13 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         if self._unit is None:
             return None
         unit_mapping = {
-            self.Unit.GRAMS: UnitOfMass.GRAMS,
-            self.Unit.ML: UnitOfVolume.MILLILITERS,
-            self.Unit.ML_MILK: UnitOfVolume.MILLILITERS,
-            self.Unit.FLOZ: UnitOfVolume.FLUID_OUNCES,
-            self.Unit.FLOZ_MILK: UnitOfVolume.FLUID_OUNCES,
-            self.Unit.OZ: UnitOfMass.OUNCES,
-            self.Unit.LBOZ: "lb:oz"
+            Units.GRAMS: UnitOfMass.GRAMS,
+            Units.ML: UnitOfVolume.MILLILITERS,
+            Units.ML_MILK: UnitOfVolume.MILLILITERS,
+            Units.FLOZ: UnitOfVolume.FLUID_OUNCES,
+            Units.FLOZ_MILK: UnitOfVolume.FLUID_OUNCES,
+            Units.OZ: UnitOfMass.OUNCES,
+            Units.LBOZ: "lb:oz"
         }
         return unit_mapping.get(self._unit, None)
 
@@ -84,31 +113,27 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
     def available(self):
         return self._available
     
-    class Unit(Enum):
-        GRAMS = 0x00
-        ML = 0x02
-        ML_MILK = 0x04
-        FLOZ = 0x03
-        FLOZ_MILK = 0x05
-        OZ = 0x06
-        LBOZ = 0x01
-
-    WeightData = namedtuple('WeightData', ['weight', 'unit', 'is_stable'])
-
     def decode_weight(self, data):
         """Decode weight data for Etekcity Smart Nutrition Scale and return a structure with weight, unit, and is_stable."""
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
 
+        packetType = data[4]
+
+        # Ensure the data has the expected length
+        if packetType != PacketTypes.MEASUREMENT or len(data) != 12:
+            _LOGGER.debug(f"Received data is too short: {data.hex()}")
+            return None
+
         # Extract relevant data from bytes
-        sign = data[9] == 0x01     # Sign byte (True if negative, False if positive)
-        weight_raw = data[10:12]   # Weight bytes (10 and 11)
-        unit = self.Unit(data[12]) # Unit byte
-        is_stable = data[13] == 0x01  # Stability byte (True if stable, False if measuring)
+        sign = data[6] == 0x01     # Sign byte (True if negative, False if positive)
+        weight_raw = data[7:9]   # Weight bytes (10 and 11)
+        unit = Units(data[9])  # Unit byte
+        is_stable = data[10] == 0x01  # Stability byte (True if stable, False if measuring)
 
         # Convert the raw weight to the appropriate unit with big-endian byte order
         weight_raw_value = int.from_bytes(weight_raw, byteorder="big")
         
-        if unit == self.Unit.LBOZ:
+        if unit == Units.LBOZ:
             # Convert to pounds and ounces
             pounds = weight_raw_value // 16
             ounces = weight_raw_value % 16 / 10
@@ -117,7 +142,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
                 weight = f"-{weight}"
         else:
             # Apply sign and convert to grams or ounces
-            divisor = 100 if unit in {self.Unit.FLOZ, self.Unit.FLOZ_MILK, self.Unit.OZ, self.Unit.LBOZ} else 10
+            divisor = 100 if unit in {Units.FLOZ, Units.FLOZ_MILK, Units.OZ, Units.LBOZ} else 10
             weight = weight_raw_value / divisor if not sign else -weight_raw_value / divisor
 
         # Determine if the measurement is stable
@@ -141,7 +166,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         # Reset the disconnect timer
         if self._disconnect_timer:
             self._disconnect_timer.cancel()
-        self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
+        self._disconnect_timer = self.hass.loop.call_later(300, self.disconnect)
 
     async def connect(self):
         async with self._connect_lock:
@@ -156,9 +181,6 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
                 
                 await self._client.start_notify(NOTIFY_CHAR, self.notification_handler)
                 _LOGGER.debug(f"Notifications started for characteristic: {NOTIFY_CHAR}")
-                
-                #await self._client.write_gatt_char(WRITE_CHAR, b'\x01', response=False)
-                #_LOGGER.debug(f"Wrote to characteristic: {WRITE_CHAR}")
                 
                 # Set initial disconnect timer
                 self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
