@@ -10,29 +10,29 @@ from struct import unpack
 _LOGGER = logging.getLogger(__name__)
 
 #WRITE_CHAR = "0000ffb1-0000-1000-8000-00805f9b34fb"
-NOTIFY_CHAR = "0000fff1-0000-1000-8000-00805f9b34fb"
+NOTIFY_CHAR = "00002c12-0000-1000-8000-00805f9b34fb"
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up the Senssun Body Scale sensor from a config entry."""
+    """Set up the Etekcity Smart Nutrition Scale sensor from a config entry."""
     address = config_entry.data["address"]
-    _LOGGER.debug(f"Setting up Senssun Body Scale sensor with address: {address}")
-    scale = SenssunScaleSensor(hass, address)
+    _LOGGER.debug(f"Setting up Etekcity Smart Nutrition Scale sensor with address: {address}")
+    scale = EtekcitySmartNutritionScaleSensor(hass, address)
     async_add_entities([scale], True)
 
-class SenssunScaleSensor(SensorEntity):
+class EtekcitySmartNutritionScaleSensor(SensorEntity):
     def __init__(self, hass, address):
         self.hass = hass
         self._address = address
         self._state = None
         self._available = False
-        self._attr_name = "Senssun Body Scale Weight"
+        self._attr_name = "Etekcity Smart Nutrition Scale Weight"
         self._attr_unique_id = f"ble_scale_{self._address}"
         self._client = None
         self._disconnect_timer = None
         self._connect_lock = asyncio.Lock()
         self._connection_retry_interval = 60  # Retry connection every 60 seconds
         self._retry_task = None
-        _LOGGER.debug(f"SenssunScaleSensor initialized with address: {address}")
+        _LOGGER.debug(f"EtekcitySmartNutritionScaleSensor initialized with address: {address}")
 
     @property
     def name(self):
@@ -48,7 +48,7 @@ class SenssunScaleSensor(SensorEntity):
 
     @property
     def unit_of_measurement(self):
-        return UnitOfMass.KILOGRAMS
+        return UnitOfMass.KILOGRAMS # TODO: Change according to the cohsen unit on the scale.
 
     @property
     def available(self):
@@ -59,7 +59,7 @@ class SenssunScaleSensor(SensorEntity):
         return int((ctr1 & 0xA0) == 0xA0)
     
     def decode_weight(self, data):
-        """Decode weight data for Senssun Scales and return only if stable."""
+        """Decode weight data for Etekcity Smart Nutrition Scale and return only if stable."""
         _LOGGER.debug(f"Decoding weight data: {data.hex()}")
     
         # Extract relevant data from bytes
@@ -120,15 +120,15 @@ class SenssunScaleSensor(SensorEntity):
                 self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
             
             except asyncio.TimeoutError:
-                _LOGGER.error(f"Timeout connecting to Senssun Body Scale: {self._address}")
+                _LOGGER.error(f"Timeout connecting to Etekcity Smart Nutrition Scale: {self._address}")
                 self._available = False
                 self._schedule_retry()
             except BleakError as e:
-                _LOGGER.error(f"Error connecting to Senssun Body Scale: {e}")
+                _LOGGER.error(f"Error connecting to Etekcity Smart Nutrition Scale: {e}")
                 self._available = False
                 self._schedule_retry()
             except Exception as e:
-                _LOGGER.error(f"Unexpected error connecting to Senssun Body Scale: {e}")
+                _LOGGER.error(f"Unexpected error connecting to Etekcity Smart Nutrition Scale: {e}")
                 self._available = False
                 self._schedule_retry()
 
@@ -149,9 +149,9 @@ class SenssunScaleSensor(SensorEntity):
     async def _disconnect(self):
         try:
             await self._client.disconnect()
-            _LOGGER.debug(f"Disconnected from Senssun Body Scale: {self._address}")
+            _LOGGER.debug(f"Disconnected from Etekcity Smart Nutrition Scale: {self._address}")
         except Exception as e:
-            _LOGGER.error(f"Error disconnecting from Senssun Body Scale: {e}")
+            _LOGGER.error(f"Error disconnecting from Etekcity Smart Nutrition Scale: {e}")
         finally:
             self._client = None
             self._available = False

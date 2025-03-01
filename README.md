@@ -1,7 +1,7 @@
-# Senssun Body Scale Custom Component for Home Assistant
+# Etekcity Smart Nutrition Scale Custom Component for Home Assistant
 Originally forked from https://github.com/jonwilliams84/ha-ble-scale
 
-This custom component integrates Senssun Body scales into Home Assistant, providing real-time weight measurements.
+This custom component integrates Etekcity Smart Nutrition Scales into Home Assistant, providing real-time weight measurements.
 
 ## Features
 
@@ -23,7 +23,7 @@ This custom component integrates Senssun Body scales into Home Assistant, provid
 
 1. In Home Assistant, go to Configuration > Integrations.
 2. Click the "+" button to add a new integration.
-3. Search for "BLE Scale" and select it.
+3. Search for "Etekcity Smart Nutrition Scale" and select it.
 4. Follow the configuration steps:
    - Select your BLE scale from the list of discovered devices.
    - If your scale is not automatically discovered, you can manually enter its Bluetooth address.
@@ -39,4 +39,4 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## Acknowledgments
 
 - Thanks to the Home Assistant community for their support and inspiration.
-- Thanks to https://github.com/jonwilliams84 who I originally forked this repository from.
+- Thanks to https://github.com/mukowman who I originally forked this repository from.

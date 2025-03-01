@@ -1,10 +1,10 @@
 {
-  "domain": "senssun_scale",
-  "name": "Senssun Body Scale",
+  "domain": "etekcity_smart_nutrition_scale",
+  "name": "Etekcity Smart Nutrition Scale",
   "config_flow": true,
-  "documentation": "https://github.com/mukowman/ha-ble-senssun-scale",
+  "documentation": "https://github.com/tsvetelin-pavlov/ha-ble-etekcity-smart-nutrition-scale",
   "dependencies": ["bluetooth"],
-  "codeowners": ["@mukowman"],
+  "codeowners": ["@tsvetelin-pavlov"],
   "requirements": ["bleak"],
   "bluetooth": [
     {
