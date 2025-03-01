@@ -1,6 +1,7 @@
 {
   "domain": "etekcity_smart_nutrition_scale",
   "name": "Etekcity Smart Nutrition Scale",
+  "icon": "https://raw.githubusercontent.com/tsvetelin-pavlov/ha-ble-etekcity-smart-nutrition-scale/refs/heads/main/Etekcity.svg",
   "config_flow": true,
   "documentation": "https://github.com/tsvetelin-pavlov/ha-ble-etekcity-smart-nutrition-scale",
   "dependencies": ["bluetooth"],
