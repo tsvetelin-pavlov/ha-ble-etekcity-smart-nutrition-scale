@@ -10,7 +10,7 @@ from .const import DOMAIN, NAME
 
 class EtekcitySmartNutritionScaleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
-    MINOR_VERSION = 2
+    MINOR_VERSION = 3
 
     def __init__(self) -> None:
         self.discovered_devices: dict[str, BluetoothServiceInfoBleak] = {}

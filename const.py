@@ -2,4 +2,4 @@
 DOMAIN = "etekcity_smart_nutrition_scale"
 NAME = "Etekcity Smart Nutrition Scale"
 RETRY_INTERVAL = float(30.0)
-DISCONNECT_TIMEOUT = float(60.0)
+DISCONNECT_TIMEOUT = float(300.0)
