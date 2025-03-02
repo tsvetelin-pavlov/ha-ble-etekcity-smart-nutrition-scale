@@ -6,10 +6,11 @@ from homeassistant.components.bluetooth import (
 from homeassistant.data_entry_flow import FlowResult
 from homeassistant.const import CONF_ADDRESS
 import voluptuous as vol
-from .const import DOMAIN
+from .const import DOMAIN, NAME
 
-class BLEScaleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
+class EtekcitySmartNutritionScaleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
     VERSION = 1
+    MINOR_VERSION = 1
 
     def __init__(self) -> None:
         self.discovered_devices: dict[str, BluetoothServiceInfoBleak] = {}
@@ -27,7 +28,7 @@ class BLEScaleConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
             await self.async_set_unique_id(address)
             self._abort_if_unique_id_configured()
             return self.async_create_entry(
-                title=f"Etekcity Smart Nutrition Scale ({address})",
+                title=f"{NAME} ({address})",
                 data=user_input,
             )
 

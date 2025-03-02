@@ -2,8 +2,8 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 from homeassistant.const import Platform
+from .const import DOMAIN, NAME
 
-DOMAIN = "etekcity_smart_nutrition_scale"
 PLATFORMS = [Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:

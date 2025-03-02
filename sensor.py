@@ -9,6 +9,7 @@ from bleak.exc import BleakError
 from struct import unpack
 from enum import Enum
 from collections import namedtuple
+from .const import DOMAIN, NAME
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -27,13 +28,12 @@ Service: 00001800-0000-1000-8000-00805f9b34fb
     Characteristic: 00002a01-0000-1000-8000-00805f9b34fb [READ]
 """
 
-#WRITE_CHAR = "00002c11-0000-1000-8000-00805f9b34fb"
 NOTIFY_CHAR = "00002c12-0000-1000-8000-00805f9b34fb"
 
 async def async_setup_entry(hass, config_entry, async_add_entities):
-    """Set up the Etekcity Smart Nutrition Scale sensor from a config entry."""
+    """Set up the sensor from a config entry."""
     address = config_entry.data["address"]
-    _LOGGER.debug(f"Setting up Etekcity Smart Nutrition Scale sensor with address: {address}")
+    _LOGGER.debug(f"Setting up {NAME} sensor with address: {address}")
     scale = EtekcitySmartNutritionScaleSensor(hass, address)
     async_add_entities([scale], True)
 
@@ -72,15 +72,15 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         self._address = address
         self._state = None
         self._available = False
-        self._attr_name = "Etekcity Smart Nutrition Scale Weight"
-        self._attr_unique_id = f"etekcity_smart_nutrition_scale_{self._address}"
+        self._attr_name = "{NAME} Weight"
+        self._attr_unique_id = f"{DOMAIN}_{self._address}"
         self._client = None
         self._disconnect_timer = None
         self._connect_lock = asyncio.Lock()
         self._connection_retry_interval = 60  # Retry connection every 60 seconds
         self._retry_task = None
         self._unit = None  # Add this line to store the unit
-        _LOGGER.debug(f"Etekcity Smart Nutrition Scale Sensor initialized with address: {address}")
+        _LOGGER.debug(f"{NAME} sensor initialized with address: {address}")
 
     @property
     def name(self):
@@ -114,36 +114,38 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         return self._available
     
     def decode_weight(self, data):
-        """Decode weight data for Etekcity Smart Nutrition Scale and return a structure with weight, unit, and is_stable."""
-        _LOGGER.debug(f"Decoding weight data: {data.hex()}")
+        """Decode weight data and return a structure with weight, unit, and is_stable."""
 
         packetType = data[4]
 
+        # Ensure the packet is measurement
+        if packetType != PacketTypes.MEASUREMENT:
+            _LOGGER.debug(f"Packet is not of type MEASUREMENT: {packetType}")
+            return None
+            
         # Ensure the data has the expected length
-        if packetType != PacketTypes.MEASUREMENT or len(data) != 12:
-            _LOGGER.debug(f"Received data is too short: {data.hex()}")
+        if len(data) != 12:
+            _LOGGER.debug(f"Received data is not 12 bytes: {data.hex()}. It is {len(data)} bytes.")
             return None
 
         # Extract relevant data from bytes
-        sign = data[6] == 0x01     # Sign byte (True if negative, False if positive)
-        weight_raw = data[7:9]   # Weight bytes (10 and 11)
-        unit = Units(data[9])  # Unit byte
-        is_stable = data[10] == 0x01  # Stability byte (True if stable, False if measuring)
+        sign = data[6] == 0x01          # Sign byte (True if negative, False if positive)
+        weight_raw = data[7:9]          # Weight bytes (10 and 11)
+        unit = Units(data[9])           # Unit byte
+        is_stable = data[10] == 0x01    # Stability byte (True if stable, False if measuring)
 
         # Convert the raw weight to the appropriate unit with big-endian byte order
         weight_raw_value = int.from_bytes(weight_raw, byteorder="big")
         
+        # Apply sign and convert to grams or ounces
+        divisor = 100 if unit in {Units.FLOZ, Units.FLOZ_MILK, Units.OZ, Units.LBOZ} else 10
+        weight = weight_raw_value / divisor if not sign else -weight_raw_value / divisor
+
         if unit == Units.LBOZ:
             # Convert to pounds and ounces
-            pounds = weight_raw_value // 16
-            ounces = weight_raw_value % 16 / 10
-            weight = f"{pounds}:{ounces:.1f}"
-            if sign:
-                weight = f"-{weight}"
-        else:
-            # Apply sign and convert to grams or ounces
-            divisor = 100 if unit in {Units.FLOZ, Units.FLOZ_MILK, Units.OZ, Units.LBOZ} else 10
-            weight = weight_raw_value / divisor if not sign else -weight_raw_value / divisor
+            pounds = int(weight / 16)
+            ounces = weight % 16
+            weight = f"{pounds} : {ounces:.1f}"
 
         # Determine if the measurement is stable
         if not is_stable:
@@ -166,7 +168,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         # Reset the disconnect timer
         if self._disconnect_timer:
             self._disconnect_timer.cancel()
-        self._disconnect_timer = self.hass.loop.call_later(300, self.disconnect)
+        self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
 
     async def connect(self):
         async with self._connect_lock:
@@ -176,7 +178,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
             try:
                 self._client = BleakClient(self._address, timeout=10.0)
                 await asyncio.wait_for(self._client.connect(), timeout=20.0)
-                _LOGGER.debug(f"Connected to Etekcity Smart Nutrition Scale: {self._address}")
+                _LOGGER.debug(f"Connected to {NAME}: {self._address}")
                 self._available = True
                 
                 await self._client.start_notify(NOTIFY_CHAR, self.notification_handler)
@@ -186,15 +188,15 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
                 self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
             
             except asyncio.TimeoutError:
-                _LOGGER.error(f"Timeout connecting to Etekcity Smart Nutrition Scale: {self._address}")
+                _LOGGER.error(f"Timeout connecting to {NAME}: {self._address}")
                 self._available = False
                 self._schedule_retry()
             except BleakError as e:
-                _LOGGER.error(f"Error connecting to Etekcity Smart Nutrition Scale: {e}")
+                _LOGGER.error(f"Error connecting to {NAME}: {e}")
                 self._available = False
                 self._schedule_retry()
             except Exception as e:
-                _LOGGER.error(f"Unexpected error connecting to Etekcity Smart Nutrition Scale: {e}")
+                _LOGGER.error(f"Unexpected error connecting to {NAME}: {e}")
                 self._available = False
                 self._schedule_retry()
 
@@ -215,9 +217,9 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
     async def _disconnect(self):
         try:
             await self._client.disconnect()
-            _LOGGER.debug(f"Disconnected from Etekcity Smart Nutrition Scale: {self._address}")
+            _LOGGER.debug(f"Disconnected from {NAME}: {self._address}")
         except Exception as e:
-            _LOGGER.error(f"Error disconnecting from Etekcity Smart Nutrition Scale: {e}")
+            _LOGGER.error(f"Error disconnecting from {NAME}: {e}")
         finally:
             self._client = None
             self._available = False
