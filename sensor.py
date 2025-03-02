@@ -9,7 +9,7 @@ from bleak.exc import BleakError
 from struct import unpack
 from enum import Enum
 from collections import namedtuple
-from .const import DOMAIN, NAME ,RETRY_INTERVAL
+from .const import NAME, DOMAIN, RETRY_INTERVAL, DISCONNECT_TIMEOUT
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -168,7 +168,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         # Reset the disconnect timer
         if self._disconnect_timer:
             self._disconnect_timer.cancel()
-        self._disconnect_timer = self.hass.loop.call_later(RETRY_INTERVAL, self.disconnect)
+        self._disconnect_timer = self.hass.loop.call_later(DISCONNECT_TIMEOUT, self.disconnect)
 
     async def connect(self):
         async with self._connect_lock:
@@ -185,7 +185,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
                 _LOGGER.debug(f"Notifications started for characteristic: {NOTIFY_CHAR}")
                 
                 # Set initial disconnect timer
-                self._disconnect_timer = self.hass.loop.call_later(RETRY_INTERVAL, self.disconnect)
+                self._disconnect_timer = self.hass.loop.call_later(DISCONNECT_TIMEOUT, self.disconnect)
             
             except asyncio.TimeoutError:
                 _LOGGER.error(f"Timeout connecting to {NAME}: {self._address}")

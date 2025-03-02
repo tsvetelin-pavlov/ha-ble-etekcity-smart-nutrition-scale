@@ -1,4 +1,5 @@
 """Constants for the Etekcity Smart Nutrition Scale integration."""
 DOMAIN = "etekcity_smart_nutrition_scale"
 NAME = "Etekcity Smart Nutrition Scale"
-RETRY_INTERVAL = 30
+RETRY_INTERVAL = int(5)
+DISCONNECT_TIMEOUT = int(60)
