@@ -9,7 +9,7 @@ from bleak.exc import BleakError
 from struct import unpack
 from enum import Enum
 from collections import namedtuple
-from .const import DOMAIN, NAME
+from .const import DOMAIN, NAME ,RETRY_INTERVAL
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -72,12 +72,12 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         self._address = address
         self._state = None
         self._available = False
-        self._attr_name = "{NAME} Weight"
+        self._attr_name = f"{NAME} Weight"
         self._attr_unique_id = f"{DOMAIN}_{self._address}"
         self._client = None
         self._disconnect_timer = None
         self._connect_lock = asyncio.Lock()
-        self._connection_retry_interval = 60  # Retry connection every 60 seconds
+        self._connection_retry_interval = RETRY_INTERVAL  # Retry connection every RETRY_INTERVAL seconds
         self._retry_task = None
         self._unit = None  # Add this line to store the unit
         _LOGGER.debug(f"{NAME} sensor initialized with address: {address}")
@@ -120,7 +120,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
 
         # Ensure the packet is measurement
         if packetType != PacketTypes.MEASUREMENT:
-            _LOGGER.debug(f"Packet is not of type MEASUREMENT: {packetType}")
+            _LOGGER.debug(f"Packet is not of type MEASUREMENT: {packetType.hex()}")
             return None
             
         # Ensure the data has the expected length
@@ -153,7 +153,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
             return None  # Return None if the measurement is not stable
 
         _LOGGER.debug(f"Stable weight measurement: {weight}, Unit: {unit.name}, Stable: {is_stable}")
-        return self.WeightData(weight=weight, unit=unit, is_stable=is_stable)
+        return WeightData(weight=weight, unit=unit, is_stable=is_stable)
 
     def notification_handler(self, sender, data):
         _LOGGER.debug(f"Received notification: {data.hex()}")
@@ -168,7 +168,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         # Reset the disconnect timer
         if self._disconnect_timer:
             self._disconnect_timer.cancel()
-        self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
+        self._disconnect_timer = self.hass.loop.call_later(RETRY_INTERVAL, self.disconnect)
 
     async def connect(self):
         async with self._connect_lock:
@@ -185,7 +185,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
                 _LOGGER.debug(f"Notifications started for characteristic: {NOTIFY_CHAR}")
                 
                 # Set initial disconnect timer
-                self._disconnect_timer = self.hass.loop.call_later(60, self.disconnect)
+                self._disconnect_timer = self.hass.loop.call_later(RETRY_INTERVAL, self.disconnect)
             
             except asyncio.TimeoutError:
                 _LOGGER.error(f"Timeout connecting to {NAME}: {self._address}")

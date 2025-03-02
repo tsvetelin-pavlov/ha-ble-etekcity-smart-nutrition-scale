@@ -2,12 +2,11 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.components import bluetooth
 from homeassistant.const import Platform
-from .const import DOMAIN, NAME
 
 PLATFORMS = [Platform.SENSOR]
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
-    """Set up Etekcity Smart Nutrition Scale from a config entry."""
+    """Set up scale from a config entry."""
     address = entry.data["address"]
 
     def _device_update(
