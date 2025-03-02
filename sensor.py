@@ -120,7 +120,7 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
 
         # Ensure the packet is measurement
         if packetType != PacketTypes.MEASUREMENT:
-            _LOGGER.debug(f"Packet is not of type MEASUREMENT: {packetType.hex()}")
+            _LOGGER.debug(f"Packet is not of type MEASUREMENT: {packetType:#04x}")
             return None
             
         # Ensure the data has the expected length
