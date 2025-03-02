@@ -156,6 +156,10 @@ class EtekcitySmartNutritionScaleSensor(SensorEntity):
         return WeightData(weight=weight, unit=unit, is_stable=is_stable)
 
     def notification_handler(self, sender, data):
+        # Offload the real logic to the HA event loop
+        self.hass.loop.call_soon_threadsafe(self.handle_notification_in_loop, sender, data)
+
+    def handle_notification_in_loop(self, sender, data):
         _LOGGER.debug(f"Received notification: {data.hex()}")
         weight_data = self.decode_weight(data)
         if weight_data:
